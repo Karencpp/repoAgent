@@ -1,170 +1,280 @@
 # RepoAgent
 
-RepoAgent 是一个面向 Python 代码库的可解释维护 Agent。
+RepoAgent 是一个面向 Python 代码库的可解释代码维护 Agent。它把大模型放在受控的软件工程闭环中：显式选择目标仓库，使用 LangGraph 编排任务，通过受限 ReAct 调用工具，并用代码引用、编译和测试结果验证输出。
 
-## 现在可以真实运行的两条链路
+项目当前提供本地 CLI，支持两条真实链路：
 
-RepoAgent 不会默认操作启动目录。无论解释还是维护，都必须传入目标仓库路径，
-或者先注册项目再通过项目名选择。RAG、Memory 和 Checkpoint 数据保存在独立状态目录，
-不会混入目标代码库。
+- **Explain**：只读分析代码库，输出经过 Evaluator 验收和源码引用复核的答案。
+- **Fix**：在独立候选副本中生成补丁、运行客观验证，等待人工审批后才回写真实仓库。
 
-先安装当前项目：
+> 当前定位是可运行、可评测的本地工程实现，不是生产级多租户服务。SQLite 是默认开发后端；PostgreSQL/pgvector 是可选后端。
+
+## 核心能力
+
+- **多代码库隔离**：每次运行必须显式传入 `--repo` 或 `--project`；`ProjectContext` 绑定稳定项目身份、仓库根目录和当前 revision。
+- **双工作流**：只读链路使用 Plan / Execute / Evaluate / Reflect / Replan；维护链路独立管理分析、补丁、验证、反思、重试、审批和回写。
+- **受控 ReAct 与 Tool Registry**：模型只提交结构化决策；宿主执行工具白名单、JSON Schema、参数、预算和权限校验。
+- **代码库 RAG**：Python AST、Markdown 标题和通用文本结构化分块，SHA-256 增量索引，BM25/Dense/RRF 混合检索并携带源码范围。
+- **Memory 与 Context Engineering**：区分 Working State、Checkpoint、长期 Memory 和代码 RAG；按项目、revision、可信状态和 Token 预算组织上下文。
+- **Checkpoint 恢复**：SQLite 或 PostgreSQL 保存 LangGraph 状态；恢复前校验项目身份和代码 revision，拒绝在代码已经变化时静默续跑。
+- **安全候选修改**：补丁先写入独立工作副本，再依次验证变更范围、Python 编译、目标测试和回归测试。
+- **持久化人工审批**：维护工作流在 `await_approval` 节点暂停，可通过 `resume-fix --approve/--reject` 恢复。
+- **Final Answer 引用复核**：最终答案只消费已通过 Evaluator 的结果，并重新读取当前源码复核 `path:start-end` 引用。
+- **Agent Skill**：可信目录中的能力包支持渐进加载、确定性路由、参考资料、受控脚本、双向 Schema、版本和完整包哈希。
+- **MCP Gateway**：支持本地 Registry 和现代 HTTP Server；远程工具只有匹配宿主 Policy 后才能进入 Tool Registry。
+- **双存储后端**：默认使用 SQLite；可选 PostgreSQL FTS、pgvector HNSW、PostgreSQL Memory 和 LangGraph PostgresSaver。
+- **离线评测**：内置 Retrieval、Explain、Patch 数据集和可重复 Runner；另有 Django RAG、GLM Embedding/Rerank、Skill 和编排 A/B benchmark。
+
+## 工作流概览
+
+### 只读解释
+
+```text
+ProjectContext
+  -> RAG / verified Memory 预检索
+  -> Plan
+  -> Execute（每个步骤内部运行受控 ReAct）
+  -> Evaluate
+  -> Reflect / Replan（失败时，受预算限制）
+  -> Final Answer（重新复核源码引用）
+```
+
+### 代码维护
+
+```text
+Analyze Repository
+  -> Select Targets
+  -> Propose Patch
+  -> Evaluate Patch
+       |-- failed -> Reflect -> Repatch / Reselect / Stop
+       `-- passed -> Persist Proposal -> Await Approval
+                                         |-- approve -> Promote Patch
+                                         `-- reject  -> Report Rejected
+```
+
+真实仓库在审批前不会被修改。工作副本隔离不等于操作系统沙箱；运行不可信仓库仍需要容器或受限账户。
+
+## 环境要求与安装
+
+- Python 3.12+
+- GLM 或 DeepSeek API Key，用于真实 Planner、ReAct 和 Reflector
+- 可选：Docker Compose，用于 PostgreSQL/pgvector 后端与 benchmark
+
+建议使用虚拟环境安装：
 
 ```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 ```
 
-配置已经轮换过的 GLM 密钥：
+配置推理供应商。默认使用 GLM：
 
 ```powershell
-$env:ZHIPUAI_API_KEY="你的新密钥"
+$env:ZHIPUAI_API_KEY="你的 GLM 密钥"
 ```
 
-也可以切换到 DeepSeek。推理供应商只影响 Planner、ReAct、Reflector 和语义记忆，
-不会改变 LangGraph、工具、RAG、Memory 或候选验证协议：
+也可以切换到 DeepSeek：
 
 ```powershell
 $env:DEEPSEEK_API_KEY="你的 DeepSeek 密钥"
 repo-agent explain --llm-provider deepseek --repo "D:\code\target-project" "解释核心调用链"
 ```
 
-如果希望从 PyCharm Run Console 动态输入问题，可以省略最后的问题，或使用连续交互模式：
+推理供应商只影响模型调用，不改变工作流、工具权限、RAG、Memory 和候选验证协议。
+
+## 快速开始
+
+### 1. 解释代码库
 
 ```powershell
-repo-agent --state-dir ".\output\my-state" chat --llm-provider deepseek --repo "D:\code\target-project"
+repo-agent --state-dir ".\output\my-state" explain `
+  --repo "D:\code\target-project" `
+  "这个项目的入口和核心调用链是什么？"
 ```
 
-`chat` 每次读取一个问题并形成独立可恢复任务；输入 `退出`、`exit` 或 `quit` 结束。
-运行过程中会实时输出索引、规划、ReAct 轮次、工具调用、评估和 Memory 治理事件，
-不会在结构化模型调用期间长时间保持空白。
+RepoAgent 不会使用当前工作目录兜底。RAG、Memory、Checkpoint 和项目注册表都写入独立的 `state-dir`，不会混入目标仓库。
 
-只读解释任意 Python 仓库：
+### 2. 连续问答
 
 ```powershell
-repo-agent explain --repo "D:\code\target-project" "这个项目的入口和核心调用链是什么？"
+repo-agent --state-dir ".\output\my-state" chat `
+  --repo "D:\code\target-project"
 ```
 
-解释链路结束后会再经过 Final Answer 合成层。该层只消费已经通过 Evaluator 的步骤结果和
-Evidence，并用 `read_file_range` 重新复核 `path:start-end` 引用；无法复核的重要断言会在
-答案边界中标记为 unsupported，不会反向改写工作流的客观状态。
+输入 `退出`、`exit` 或 `quit` 结束。每个问题都会形成独立的可恢复任务。
 
-默认检索使用不联网的特征哈希向量，便于本地运行但不等同于语义 Embedding。
-如果代码允许发送到外部服务，可以显式开启 GLM Embedding：
+### 3. 注册常用项目
+
+```powershell
+repo-agent --state-dir ".\output\my-state" project add `
+  --repo "D:\code\target-project" `
+  --name target-project
+
+repo-agent --state-dir ".\output\my-state" project list
+repo-agent --state-dir ".\output\my-state" explain `
+  --project target-project `
+  "请求进入系统后经过哪些模块？"
+```
+
+### 4. 恢复只读任务
+
+只有目标项目、路径和 revision 仍然匹配时才能恢复：
+
+```powershell
+repo-agent --state-dir ".\output\my-state" resume `
+  --project target-project `
+  --thread-id run-20260813T120000Z-abcd1234
+```
+
+## 生成、验证并审批补丁
+
+`--allow-code-execution` 明确授权 RepoAgent 在候选副本中运行目标仓库测试。缺少该参数时，验证会停在权限边界。
+
+```powershell
+repo-agent --state-dir ".\output\my-state" fix `
+  --repo "D:\code\target-project" `
+  --thread-id fix-add-bug `
+  --allow-code-execution `
+  "修复 add 函数的计算错误"
+```
+
+命令会输出 unified diff、客观验证报告、`proposal_id` 和线程标识。验证通过后，工作流停在持久化审批节点。
+
+批准并回写：
+
+```powershell
+repo-agent --state-dir ".\output\my-state" resume-fix `
+  --repo "D:\code\target-project" `
+  --thread-id fix-add-bug `
+  --approve
+```
+
+拒绝候选：
+
+```powershell
+repo-agent --state-dir ".\output\my-state" resume-fix `
+  --repo "D:\code\target-project" `
+  --thread-id fix-add-bug `
+  --reject
+```
+
+旧 proposal 文件仍可通过兼容入口批准：
+
+```powershell
+repo-agent --state-dir ".\output\my-state" apply `
+  --proposal-id proposal-xxxxxxxxxxxxxxxxxxxx `
+  --approve
+```
+
+维护链路遵守以下不变量：
+
+- 模型只生成结构化修改草稿，旧文件 SHA-256 由宿主从真实基线读取。
+- 所有文件先完成路径、类型、编码和哈希校验，再写入候选副本。
+- Evaluator 依次检查变更范围、Python 编译、目标测试和回归测试；任何 skipped 都不算通过。
+- pytest 优先使用目标仓库的 `.venv`、`venv` 或 `env`，找不到时才显式降级到宿主解释器。
+- 未通过验证、未获得审批或源仓库 revision/文件哈希发生变化时，回写会被拒绝。
+- 回写使用同目录原子替换；多文件写入中途失败时会尝试恢复已经修改的文件。
+
+## RAG、Embedding 与 Reranker
+
+默认使用 256 维 `FeatureHashEmbeddingClient`。它无需联网，适合离线协议测试和稳定回归，但不是真正的语义 Embedding。
+
+允许源码发送到外部服务后，可以显式启用 GLM Embedding：
 
 ```powershell
 $env:ALLOW_EXTERNAL_CODE_EMBEDDING="true"
-repo-agent explain --repo "D:\code\target-project" --use-glm-embedding "解释核心领域模型"
+repo-agent explain --repo "D:\code\target-project" `
+  --use-glm-embedding `
+  "解释核心领域模型"
 ```
 
-可以显式装配本地或 HTTP MCP Server。只有配置文件中经过宿主审核的工具策略会注册到
-Tool Registry，远程描述和 annotations 不会自动成为授权：
+GLM Reranker 当前已经实现供应商无关接口、HTTP 适配器和 benchmark，但尚未作为普通 `explain` 命令的默认检索阶段。外部重排必须单独设置 `ALLOW_EXTERNAL_CODE_RERANKING=true`。
+
+## Agent Skill
+
+仓库内置两个可信 Skill 示例：
+
+- `diagnose-pytest-failure`：根据 pytest 观察确定性分类测试失败。
+- `safe-python-refactor`：比较 Python 公共 API 和签名变化。
+
+默认从应用配置的可信 Skill 根目录发现能力，也可以显式指定：
 
 ```powershell
-repo-agent explain --repo "D:\code\target-project" --mcp-config ".\configs\mcp.local-registry.example.json" "列出入口文件"
+repo-agent explain --repo "D:\code\target-project" `
+  --skills-root ".\skills" `
+  "分析测试失败原因"
 ```
 
-长期记忆慢路径归纳需要显式 CLI 触发，并继续经过 Curator 治理：
+目标代码库中的 `SKILL.md` 或脚本不会自动成为可信指令。Skill 只能收窄现有工具权限，不能授予新权限；脚本仍通过 Tool Registry、Schema、超时和输出上限执行。
+
+## MCP Gateway
+
+通过配置文件装配 MCP Server：
 
 ```powershell
-repo-agent memory consolidate --repo "D:\code\target-project" --topic "测试失败模式"
+repo-agent explain --repo "D:\code\target-project" `
+  --mcp-config ".\configs\mcp.local-registry.example.json" `
+  "列出入口文件"
 ```
 
-也可以注册后按名称选择：
+也可以设置：
 
 ```powershell
-repo-agent project add --repo "D:\code\target-project" --name target-project
-repo-agent explain --project target-project "请求进入系统后经过哪些模块？"
+$env:REPO_AGENT_MCP_CONFIG=".\configs\mcp.local-registry.example.json"
 ```
 
-如果运行在 checkpoint 边界中断，可以在仓库 revision 未变化时恢复同一线程：
+配置支持本地 `registry` 和远程 `http` transport。Server 的工具声明、description 和 annotations 都不等于授权；只有通过本地 Policy 审核、Schema 对齐和风险约束的工具才会注册。
+
+## 长期 Memory
+
+只读和维护任务可以自动形成受 Curator 治理的情景记忆和语义候选。跨多次任务的慢路径归纳需要显式触发：
 
 ```powershell
-repo-agent resume --project target-project --thread-id run-20260802T120000Z-abcd1234
+repo-agent --state-dir ".\output\my-state" memory consolidate `
+  --repo "D:\code\target-project" `
+  --topic "测试失败模式"
 ```
 
-生成维护候选时，真实仓库不会被修改。`--allow-code-execution` 是对隔离副本运行
-pytest 的显式授权；未提供时验证会停在权限边界：
+模型不能直接写入 verified Memory。长期事实需要经过 Evidence、scope、revision、TTL、冲突和审核策略。
 
-```powershell
-repo-agent fix --repo "D:\code\target-project" "修复 add 函数的计算错误" --allow-code-execution
-```
+## PostgreSQL / pgvector 可选后端
 
-命令会输出 unified diff、四阶段验证报告和 `proposal_id`。人工确认后，使用单独命令
-显式批准回写：
-
-```powershell
-repo-agent apply --proposal-id proposal-xxxxxxxxxxxxxxxxxxxx --approve
-```
-
-Current maintenance workflow commands:
-
-```powershell
-repo-agent fix --repo "D:\code\target-project" "fix objective" --allow-code-execution
-repo-agent resume-fix --repo "D:\code\target-project" --thread-id fix-thread --approve
-repo-agent resume-fix --repo "D:\code\target-project" --thread-id fix-thread --reject
-repo-agent apply --proposal-id proposal-xxxxxxxxxxxxxxxxxxxx --approve
-```
-
-Offline eval commands:
-
-```powershell
-repo-agent eval retrieval --dataset evals/retrieval/python-small.jsonl
-repo-agent eval explain --dataset evals/explain/python-small.jsonl
-repo-agent eval patch --dataset evals/patch/python-small.jsonl
-```
-
-## PostgreSQL/pgvector 可选后端
-
-SQLite 仍是默认开发后端。需要生产级持久化时，先启动本地 PostgreSQL/pgvector 并执行迁移：
+SQLite 是零部署默认后端。启用 PostgreSQL 后，RAG 使用 PostgreSQL FTS、trigram 和 pgvector HNSW，Memory 与 LangGraph Checkpoint 也切换到 PostgreSQL 实现。
 
 ```powershell
 docker compose -f docker-compose.postgres.yml up -d
+
+$env:REPO_AGENT_STORAGE_BACKEND="postgres"
 $env:REPO_AGENT_POSTGRES_DSN="postgresql://repo_agent:repo_agent_dev_password@localhost:54329/repo_agent"
+
 python -m pip install -e ".[postgres]"
 alembic upgrade head
-repo-agent explain --storage-backend postgres --repo "D:\code\target-project" "解释入口"
+
+repo-agent explain --storage-backend postgres `
+  --repo "D:\code\target-project" `
+  "解释入口"
 ```
 
-SQLite 状态迁移支持 dry-run 和 execute。Checkpoint 不做猜测转换；旧线程应在 SQLite 完成，
-或在 PostgreSQL 后端重新开始：
+应用不会在启动时临时建表；缺少可选依赖、DSN 或迁移时会尽早失败。
+
+SQLite 状态可以先 dry-run，再事务化迁移 RAG 和 Memory 数据：
 
 ```powershell
-repo-agent migrate-state --sqlite-state-dir ".\output\my-state" --postgres-dsn $env:REPO_AGENT_POSTGRES_DSN --dry-run
-repo-agent migrate-state --sqlite-state-dir ".\output\my-state" --postgres-dsn $env:REPO_AGENT_POSTGRES_DSN --execute
+repo-agent migrate-state `
+  --sqlite-state-dir ".\output\my-state" `
+  --postgres-dsn $env:REPO_AGENT_POSTGRES_DSN `
+  --dry-run
+
+repo-agent migrate-state `
+  --sqlite-state-dir ".\output\my-state" `
+  --postgres-dsn $env:REPO_AGENT_POSTGRES_DSN `
+  --execute
 ```
 
-维护链路的关键不变量：
+Checkpoint 不做猜测转换。已有 SQLite 线程应继续在 SQLite 中完成，或在 PostgreSQL 后端创建新任务。
 
-- 模型只产生结构化修改草稿，旧文件 SHA-256 由宿主读取真实基线后填写。
-- 补丁先应用到独立候选工作副本，依次检查变更范围、Python 编译、目标测试和回归测试。
-- pytest 优先使用目标仓库的 `.venv`、`venv` 或 `env`，找不到时才明确降级到宿主解释器。
-- 未通过全部客观验证、未显式批准或源仓库 revision/文件哈希变化，都会拒绝回写。
-- 回写使用同目录原子替换；多文件写入中途失败时会尝试恢复已经修改的文件。
-
-当前已完成：
-
-- 模块 1：显式目标仓库选择、项目注册与多代码库隔离。
-- 模块 2：受限仓库工具、统一结果契约与 pytest 执行边界。
-- 模块 3：Tool Registry、结构化模型决策与最小 ReAct 控制循环。
-- 模块 4：LangGraph 显式状态、Plan/Execute/Evaluate/Reflect/Replan 主闭环。
-- 模块 5：SQLite Checkpoint、跨实例恢复、项目线程隔离与幂等键。
-- 模块 6：隔离候选工作副本、受控补丁与客观验证闭环。
-- 模块 7：真实 GLM HTTP 适配、结构化 Planner/ReAct/Reflector 与密钥隔离。
-- 模块 8：结构感知代码分块、增量索引、混合检索与检索质量评测。
-- 模块 9：Episodic 自动留档、Semantic 提取/归纳、Perceptual 制品观察、Candidate/Curator 治理、生命周期审计、任务前 RAG/Memory 预检索、可追溯压缩与 Re-budget 上下文工程。
-- 模块 10：Agent Skill v2 能力包，包含渐进加载、确定性路由、参考资料、受控脚本、双向 Schema、自测数据、版本恢复与工具权限交集。
-- 模块 11：现代 MCP 能力发现、宿主策略映射、HTTP 调用与能力漂移校验。
-
-核心约束：
-
-- RepoAgent 自身源码仓库与目标代码库是两个概念。
-- 每次运行必须显式提供 `repo` 路径或已注册的 `project`，不使用当前工作目录兜底。
-- Memory、RAG、Checkpoint 和工具沙箱后续都以稳定的 `project_id` 隔离。
-- 每次运行重新读取目标仓库 revision，区分项目身份与代码版本。
-- Skill 只从显式可信根目录发现；目标代码库中的 `SKILL.md` 和脚本不自动提升为指令或可执行能力。
-- Skill 脚本被注册成受作用域保护的普通 Tool，通过 JSON stdin/stdout、输入输出 Schema、超时、输出上限和最小子进程环境执行。
-- MCP Server 的工具声明不等于宿主授权，只有本地 Policy 审核项才进入 Tool Registry。
-- PostgreSQL/pgvector 是可选后端；缺少 DSN、迁移或可选依赖会早失败，默认离线测试不依赖 Docker。
+## 测试与离线评测
 
 运行全部测试：
 
@@ -172,89 +282,80 @@ repo-agent migrate-state --sqlite-state-dir ".\output\my-state" --postgres-dsn $
 python -m unittest discover -s tests -v
 ```
 
-模块一知识材料：
+2026-08-13 在仓库虚拟环境中的结果：**244 个测试通过，3 个按外部条件或 Windows 能力跳过**。
 
-- `docs/adr/001-explicit-project-context.md`
-- `docs/chains/project-selection-flow.md`
-- `docs/failures/cross-project-contamination.md`
-- `docs/failures/test-temp-directory-permission.md`
-- `docs/interview/module-01-project-context.md`
+运行内置离线评测：
 
-模块二知识材料：
+```powershell
+repo-agent eval retrieval --dataset evals/retrieval/python-small.jsonl
+repo-agent eval explain --dataset evals/explain/python-small.jsonl
+repo-agent eval patch --dataset evals/patch/python-small.jsonl
+```
 
-- `docs/adr/002-restricted-repository-tools.md`
-- `docs/chains/tool-call-flow.md`
-- `docs/failures/test-failure-vs-tool-failure.md`
-- `docs/failures/path-sandbox-is-not-process-sandbox.md`
-- `docs/interview/module-02-repository-tools.md`
+同日实测结果：
 
-模块三知识材料：
+| Suite | Case | 结果 |
+| --- | ---: | --- |
+| Retrieval | 5 | 全部通过，Mean Recall@K = 1.0，最低 MRR = 0.3333 |
+| Explain | 2 | 全部通过 |
+| Patch | 2 | 全部通过，2 次 Patch 尝试 |
 
-- `docs/adr/003-structured-react-runtime.md`
-- `docs/chains/react-control-loop.md`
-- `docs/failures/invalid-model-output.md`
-- `docs/failures/duplicate-tool-loop.md`
-- `docs/interview/module-03-tool-registry-react.md`
+这些数据集是小型、确定性、本地夹具，不调用真实 LLM，也不代表生产任务总体成功率。数据格式和口径见 [`evals/README.md`](evals/README.md)。
 
-模块四知识材料：
+仓库还保留了 2026-08-08 至 2026-08-09 的大型实测结果：
 
-- `docs/adr/004-langgraph-explicit-workflow.md`
-- `docs/chains/langgraph-main-workflow.md`
-- `docs/failures/reflection-without-objective-feedback.md`
-- `docs/failures/overwriting-plan-history.md`
-- `docs/interview/module-04-langgraph-workflow.md`
+- Django Core 120 条查询、GLM `embedding-3` 512 维：Hybrid Recall@10 85.83%，Hit@10 94.17%。
+- Hybrid Top 40 + GLM Rerank：Rerank Top 20 的 MRR@10 为 80.99%，Hit@10 为 97.50%。
+- Django 17,380 Chunk 存储基准：pgvector HNSW Dense P95 1.28 ms；SQLite Python 精确扫描 P95 2524.41 ms。该对比只代表本项目两种实现。
 
-模块五知识材料：
+原始结果和限制说明位于 [`output/benchmarks`](output/benchmarks)。真实 API benchmark 会产生费用，并要求显式密钥和源码外发授权。
 
-- `docs/adr/005-sqlite-checkpoint-recovery.md`
-- `docs/chains/checkpoint-recovery-flow.md`
-- `docs/failures/checkpoint-is-not-exactly-once.md`
-- `docs/failures/checkpoint-serialization-type-drift.md`
-- `docs/interview/module-05-checkpoint-recovery.md`
+## 当前边界
 
-模块六知识材料：
+- 主要面向 Python；尚未实现多语言解析和跨文件调用图。
+- 候选工作副本、路径沙箱和受控子进程都不是 OS 级执行沙箱。
+- SQLite 适合本地、单进程或低并发；PostgreSQL 适配不等于完整生产服务。
+- 当前没有 FastAPI、异步 Worker、多租户、RBAC、GitHub PR 主链路和 OpenTelemetry 生产观测。
+- Feature Hash 向量不具备真正语义理解；GLM Embedding/Rerank 会把代码发送到外部服务。
+- Checkpoint 保存状态，但不保证外部副作用 exactly-once；写操作仍需要消费稳定幂等键。
+- 测试通过只提高补丁可信度，不能替代覆盖率、静态检查、安全扫描和人工审查。
 
-- `docs/adr/006-isolated-candidate-evaluation.md`
-- `docs/chains/candidate-validation-flow.md`
-- `docs/failures/workspace-copy-is-not-process-sandbox.md`
-- `docs/failures/stale-patch-overwrites-new-code.md`
-- `docs/interview/module-06-candidate-evaluation.md`
+后续生产化路线以 [`docs/plans/production-evolution-plan.md`](docs/plans/production-evolution-plan.md) 为唯一计划文档。
 
-模块七知识材料：
+## 代码与设计文档
 
-- `docs/adr/007-structured-glm-adapter.md`
-- `docs/chains/structured-llm-flow.md`
-- `docs/failures/json-mode-is-not-authorization.md`
-- `docs/interview/module-07-structured-glm-adapter.md`
+```text
+src/repo_agent/
+  application.py            应用装配与 Explain 主链路
+  maintenance_workflow/     Fix、反思、审批和回写状态图
+  workflow/                 Diagnose Graph、Checkpoint、Evaluator、Final Answer
+  react/                    结构化 ReAct Runtime
+  tools/                    仓库工具、执行边界和 Tool Registry
+  rag/                      分块、Embedding、检索、pgvector 与 Reranker
+  memory/                   长期记忆、形成、治理与双后端 Store
+  context_engineering/      Packet、信任分区、Token 预算和压缩
+  skills/                   Skill 发现、路由、执行与版本快照
+  mcp/                      MCP Gateway、HTTP/Registry Server 适配
+  candidate/                候选工作副本、Patch、Evaluator 和 Promotion
+  evals/                    离线评测模型与 Runner
+```
 
-模块八知识材料：
+关键设计入口：
 
-- `docs/adr/008-repository-rag.md`
-- `docs/chains/repository-rag-flow.md`
-- `docs/failures/stale-rag-index.md`
-- `docs/failures/embedding-space-mismatch.md`
-- `docs/interview/module-08-repository-rag.md`
+- [`docs/adr`](docs/adr)：架构决策记录。
+- [`docs/chains`](docs/chains)：主链路和状态流。
+- [`docs/failures`](docs/failures)：真实失败模式与修复原则。
+- [`docs/interview`](docs/interview)：按模块整理的设计讲解材料。
+- [`docs/adr/012-langgraph-maintenance-loop.md`](docs/adr/012-langgraph-maintenance-loop.md)：独立维护工作流。
+- [`docs/adr/013-final-answer-mcp-postgres-storage.md`](docs/adr/013-final-answer-mcp-postgres-storage.md)：Final Answer、MCP 主链路和双存储后端。
 
-模块九知识材料：
+## 查看完整命令
 
-- `docs/adr/009-memory-context-engineering.md`
-- `docs/chains/memory-context-flow.md`
-- `docs/failures/model-hypothesis-becomes-memory.md`
-- `docs/failures/context-stuffing.md`
-- `docs/interview/module-09-memory-context-engineering.md`
-
-模块十知识材料：
-
-- `docs/adr/010-progressive-skill-system.md`
-- `docs/chains/skill-activation-flow.md`
-- `docs/failures/skill-is-not-permission.md`
-- `docs/failures/eager-loading-all-skills.md`
-- `docs/interview/module-10-agent-skills.md`
-
-模块十一知识材料：
-
-- `docs/adr/011-modern-mcp-gateway.md`
-- `docs/chains/mcp-tool-flow.md`
-- `docs/failures/remote-mcp-metadata-is-not-policy.md`
-- `docs/failures/mcp-tool-error-vs-protocol-error.md`
-- `docs/interview/module-11-mcp-gateway.md`
+```powershell
+repo-agent --help
+repo-agent explain --help
+repo-agent fix --help
+repo-agent resume-fix --help
+repo-agent eval --help
+```
+`
