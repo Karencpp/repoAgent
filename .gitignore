@@ -39,6 +39,7 @@ pytest-cache-files-*/
 # Logs & local databases
 *.log
 identifier.sqlite
+codex-result.md
 
 # Generated / temporary / personal output (keep out of the repo)
 tmp/
