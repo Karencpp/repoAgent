@@ -1,0 +1,30 @@
+{"case_id":"pytest-assertion","goal":"诊断 pytest 断言失败并给出证据","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-collection","goal":"pytest 收集失败，定位导入错误","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-timeout","goal":"单元测试执行超时，请分析原因","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-regression","goal":"这次提交引起了回归失败","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-broken","goal":"测试挂了，先判断是环境还是代码问题","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-fix","goal":"修复 pytest 中的两个失败用例并验证","mode":"fix","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-unit-cn","goal":"排查单元测试失败的第一个关键异常","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-name","goal":"使用 diagnose-pytest-failure 规程处理问题","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-exit-code","goal":"pytest 返回 exit code 2，生成诊断报告","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-missing-dependency","goal":"pytest 因 ModuleNotFoundError 失败","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-minimal-target","goal":"运行最小 pytest 目标并分类失败","mode":"fix","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"pytest-ci","goal":"CI 中的回归测试失败需要定位","mode":"diagnose","expected_skill":"diagnose-pytest-failure"}
+{"case_id":"refactor-extract","goal":"重构这个模块并提取方法","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-split","goal":"拆分函数，同时保持外部行为不变","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-duplicate","goal":"清理重复代码并执行回归验证","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-responsibility","goal":"调整职责，把解析逻辑移出服务类","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-name","goal":"使用 safe-python-refactor 处理这个模块","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-signature","goal":"重构公共函数但不要破坏签名兼容性","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-helper","goal":"提取方法减少当前函数的圈复杂度","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-structure","goal":"进行结构重构并检查公共 API 变化","mode":"diagnose","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-small","goal":"小步重构存储层，保持测试基线","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-clean","goal":"清理重复代码但不要夹带功能变化","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-class","goal":"拆分函数并重新调整职责边界","mode":"fix","expected_skill":"safe-python-refactor"}
+{"case_id":"refactor-import","goal":"重构导入结构并检查兼容性风险","mode":"diagnose","expected_skill":"safe-python-refactor"}
+{"case_id":"none-explain","goal":"解释订单状态机如何工作","mode":"diagnose","expected_skill":null}
+{"case_id":"none-database","goal":"分析数据库事务隔离级别","mode":"diagnose","expected_skill":null}
+{"case_id":"none-api","goal":"定位 HTTP 路由的注册位置","mode":"diagnose","expected_skill":null}
+{"case_id":"none-security","goal":"检查鉴权中间件的权限边界","mode":"diagnose","expected_skill":null}
+{"case_id":"none-python-bug","goal":"定位 Python 服务中的空指针异常","mode":"diagnose","expected_skill":null}
+{"case_id":"none-docs","goal":"总结配置文件中的部署参数","mode":"diagnose","expected_skill":null}

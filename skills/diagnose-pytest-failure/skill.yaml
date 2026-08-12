@@ -1,0 +1,45 @@
+format_version: 2
+version: "2.1.0"
+modes:
+  - diagnose
+  - fix
+tags:
+  - pytest
+  - 单元测试
+  - 回归测试
+triggers:
+  - pytest
+  - 单元测试失败
+  - 测试挂了
+  - 收集失败
+  - 回归失败
+allowed_tools:
+  - list_files
+  - search_code
+  - read_file_range
+  - inspect_python
+  - run_pytest
+required_tools:
+  - read_file_range
+  - classify_pytest_failure
+instruction_resources:
+  - references/failure-classification.md
+  - references/evidence-requirements.md
+assets:
+  - assets/diagnosis-report-template.md
+tests:
+  - tests/classification-cases.json
+dependencies:
+  python: ">=3.12"
+  packages: []
+scripts:
+  - name: classify_pytest_failure
+    description: 根据 pytest 退出码、超时状态和输出信号确定失败类别，并生成统一诊断报告。
+    path: scripts/classify_pytest_failure.py
+    input_schema: schemas/classify-input.json
+    output_schema: schemas/classify-output.json
+    timeout_seconds: 5
+    max_output_chars: 50000
+    access: read
+    executes_project_code: false
+    requires_explicit_authorization: false

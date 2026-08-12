@@ -1,0 +1,4 @@
+interface:
+  display_name: "Python 安全重构"
+  short_description: "检查 Python 重构的公共 API 和兼容性风险"
+  default_prompt: "使用 $safe-python-refactor 对候选修改做小步、安全且可验证的重构分析。"

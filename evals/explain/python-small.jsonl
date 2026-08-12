@@ -1,0 +1,2 @@
+{"case_id":"explain-calculator-entry","repo_fixture":"calculator_repo","question":"Which file implements calculator operations?","required_paths":["src/calculator.py"],"required_claims":["def add","def subtract"],"forbidden_claims":["multiply"]}
+{"case_id":"explain-layered-service","repo_fixture":"layered_service_repo","question":"How is the display name assembled?","required_paths":["src/service.py","src/storage.py"],"required_claims":["display_name","UserRepository"],"forbidden_claims":["database connection"]}

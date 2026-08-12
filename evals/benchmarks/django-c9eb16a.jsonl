@@ -1,0 +1,30 @@
+{"case_id":"queryset-filter","query":"Where does Django filter a QuerySet with keyword arguments?","relevant_paths":["django/db/models/query.py"]}
+{"case_id":"model-save","query":"How does a Django model instance save itself to the database?","relevant_paths":["django/db/models/base.py"]}
+{"case_id":"url-resolver","query":"Which code resolves a URL path against nested URL patterns?","relevant_paths":["django/urls/resolvers.py"]}
+{"case_id":"json-response","query":"Where is the JSON HTTP response type implemented?","relevant_paths":["django/http/response.py"]}
+{"case_id":"login-required","query":"How is the login_required view decorator implemented?","relevant_paths":["django/contrib/auth/decorators.py"]}
+{"case_id":"password-reset-view","query":"Find the class-based view that starts a password reset flow.","relevant_paths":["django/contrib/auth/views.py"]}
+{"case_id":"admin-register","query":"Where does the admin site register model classes?","relevant_paths":["django/contrib/admin/sites.py"]}
+{"case_id":"migrate-command","query":"Find the management command that applies database migrations.","relevant_paths":["django/core/management/commands/migrate.py"]}
+{"case_id":"static-serve","query":"Where is the development static file serving view implemented?","relevant_paths":["django/views/static.py"]}
+{"case_id":"csrf-middleware","query":"Which middleware performs CSRF request validation?","relevant_paths":["django/middleware/csrf.py"]}
+{"case_id":"email-message","query":"Where is the email message object and its send behavior implemented?","relevant_paths":["django/core/mail/message.py"]}
+{"case_id":"cache-page","query":"Find the decorator that caches a view response for a timeout.","relevant_paths":["django/views/decorators/cache.py"]}
+{"case_id":"form-valid","query":"Where does a Django Form determine whether bound data is valid?","relevant_paths":["django/forms/forms.py"]}
+{"case_id":"model-form","query":"Find the base ModelForm implementation that saves model-backed forms.","relevant_paths":["django/forms/models.py"]}
+{"case_id":"signal-receiver","query":"Where is the receiver decorator for connecting signal handlers?","relevant_paths":["django/dispatch/dispatcher.py"]}
+{"case_id":"asgi-handler","query":"Find Django's asynchronous ASGI request handler.","relevant_paths":["django/core/handlers/asgi.py"]}
+{"case_id":"wsgi-handler","query":"Find Django's WSGI request handler implementation.","relevant_paths":["django/core/handlers/wsgi.py"]}
+{"case_id":"transaction-atomic","query":"Where is the atomic database transaction context manager exposed?","relevant_paths":["django/db/transaction.py"]}
+{"case_id":"timezone-now","query":"Find the utility that returns the current aware or naive datetime.","relevant_paths":["django/utils/timezone.py"]}
+{"case_id":"slugify","query":"Where does Django convert text into a URL slug?","relevant_paths":["django/utils/text.py"]}
+{"case_id":"filesystem-storage","query":"Find the storage backend that persists uploaded files on the local filesystem.","relevant_paths":["django/core/files/storage/filesystem.py"]}
+{"case_id":"streaming-response","query":"Where is the streaming HTTP response class implemented?","relevant_paths":["django/http/response.py"]}
+{"case_id":"template-render","query":"Find the core Template class that compiles and renders template source.","relevant_paths":["django/template/base.py"]}
+{"case_id":"lazy-settings","query":"Where is the lazy settings proxy initialized from DJANGO_SETTINGS_MODULE?","relevant_paths":["django/conf/__init__.py"]}
+{"case_id":"makemigrations-command","query":"Find the command that detects model changes and creates migration files.","relevant_paths":["django/core/management/commands/makemigrations.py"]}
+{"case_id":"test-client","query":"Where is Django's test HTTP client implemented?","relevant_paths":["django/test/client.py"]}
+{"case_id":"serializer-entry","query":"Find the public entry point that serializes a queryset into a selected format.","relevant_paths":["django/core/serializers/__init__.py"]}
+{"case_id":"signing-dumps","query":"Where does Django serialize and cryptographically sign an object?","relevant_paths":["django/core/signing.py"]}
+{"case_id":"email-validator","query":"Find the validator that checks email address syntax and domains.","relevant_paths":["django/core/validators.py"]}
+{"case_id":"session-middleware","query":"Which middleware attaches a session store to each request?","relevant_paths":["django/contrib/sessions/middleware.py"]}

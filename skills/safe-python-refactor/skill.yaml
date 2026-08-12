@@ -1,0 +1,43 @@
+format_version: 2
+version: 2.0.0
+modes:
+  - diagnose
+  - fix
+tags:
+  - Python
+  - 重构
+  - 兼容性
+triggers:
+  - 重构
+  - 拆分函数
+  - 提取方法
+  - 清理重复代码
+  - 调整职责
+allowed_tools:
+  - list_files
+  - search_code
+  - read_file_range
+  - inspect_python
+  - run_pytest
+  - analyze_python_api_change
+required_tools: []
+instruction_resources:
+  - references/refactor-checklist.md
+  - references/compatibility-rules.md
+assets:
+  - assets/refactor-report-template.md
+tests:
+  - tests/api-change-cases.json
+dependencies:
+  python: ">=3.12"
+  packages: []
+scripts:
+  - name: analyze_python_api_change
+    description: 使用 AST 确定性比较重构前后的公共 API、函数签名和导入变化，并输出兼容性风险报告。
+    path: scripts/analyze_python_api_change.py
+    input_schema: schemas/analyze-input.json
+    output_schema: schemas/analyze-output.json
+    timeout_seconds: 10
+    max_output_chars: 30000
+    requires_explicit_authorization: false
+

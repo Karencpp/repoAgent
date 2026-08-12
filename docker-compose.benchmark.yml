@@ -1,0 +1,125 @@
+services:
+  benchmark:
+    image: python:3.12-slim
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - benchmark_pip_cache:/root/.cache/pip
+    environment:
+      REPO_AGENT_POSTGRES_DSN: postgresql://repo_agent:repo_agent_dev_password@postgres:5432/repo_agent
+      PYTHONPATH: /workspace/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >-
+      bash -lc "apt-get update &&
+      apt-get install -y --no-install-recommends git &&
+      rm -rf /var/lib/apt/lists/* &&
+      git config --global --add safe.directory /workspace/tmp/benchmarks/django &&
+      pip install -e '.[postgres]' &&
+      alembic upgrade head &&
+      python evals/benchmarks/repository_context_benchmark.py
+      --repo /workspace/tmp/benchmarks/django
+      --dataset /workspace/evals/benchmarks/django-c9eb16a.jsonl
+      --output /workspace/output/benchmarks/django-rag-context.json
+      --reuse-existing"
+
+  production-retrieval:
+    image: python:3.12-slim
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - benchmark_pip_cache:/root/.cache/pip
+    environment:
+      REPO_AGENT_POSTGRES_DSN: postgresql://repo_agent:repo_agent_dev_password@postgres:5432/repo_agent
+      PYTHONPATH: /workspace/src
+      ZHIPUAI_API_KEY: ${ZHIPUAI_API_KEY}
+      ALLOW_EXTERNAL_CODE_EMBEDDING: "true"
+      GLM_EMBEDDING_MODEL: embedding-3
+      GLM_EMBEDDING_DIMENSIONS: "512"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >-
+      bash -lc "apt-get update &&
+      apt-get install -y --no-install-recommends git &&
+      rm -rf /var/lib/apt/lists/* &&
+      git config --global --add safe.directory /workspace/tmp/benchmarks/django &&
+      pip install -e '.[postgres]' &&
+      alembic upgrade head &&
+      python evals/benchmarks/production_retrieval_benchmark.py
+      --repo /workspace/tmp/benchmarks/django/django
+      --dataset /workspace/evals/benchmarks/django-core-120.jsonl
+      --output /workspace/output/benchmarks/production-retrieval.json"
+
+  reranker-api:
+    image: python:3.12-slim
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - benchmark_pip_cache:/root/.cache/pip
+    environment:
+      REPO_AGENT_POSTGRES_DSN: postgresql://repo_agent:repo_agent_dev_password@postgres:5432/repo_agent
+      PYTHONPATH: /workspace:/workspace/src
+      ZHIPUAI_API_KEY: ${ZHIPUAI_API_KEY}
+      ALLOW_EXTERNAL_CODE_EMBEDDING: "true"
+      ALLOW_EXTERNAL_CODE_RERANKING: "true"
+      GLM_EMBEDDING_MODEL: embedding-3
+      GLM_EMBEDDING_DIMENSIONS: "512"
+      GLM_RERANK_MODEL: rerank
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >-
+      bash -lc "apt-get update &&
+      apt-get install -y --no-install-recommends git &&
+      rm -rf /var/lib/apt/lists/* &&
+      git config --global --add safe.directory /workspace/tmp/benchmarks/django &&
+      pip install -e '.[postgres]' &&
+      alembic upgrade head &&
+      python evals/benchmarks/reranker_api_benchmark.py
+      --repo /workspace/tmp/benchmarks/django/django
+      --dataset /workspace/evals/benchmarks/django-core-120.jsonl
+      --output /workspace/output/benchmarks/reranker-api.json
+      --candidate-k 40"
+
+  skill-llm-ab:
+    image: python:3.12-slim
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - benchmark_pip_cache:/root/.cache/pip
+    environment:
+      PYTHONPATH: /workspace/src
+      PYTHONPYCACHEPREFIX: /tmp/repo-agent-pycache
+      ZHIPUAI_API_KEY: ${ZHIPUAI_API_KEY}
+      GLM_MODEL: ${GLM_MODEL:-glm-5}
+      SKILL_AB_REPETITIONS: ${SKILL_AB_REPETITIONS:-1}
+      SKILL_AB_CASE_IDS: ${SKILL_AB_CASE_IDS:-}
+      SKILL_AB_INTER_RUN_DELAY_SECONDS: ${SKILL_AB_INTER_RUN_DELAY_SECONDS:-60}
+    command: >-
+      bash -lc "pip install -e . &&
+      python evals/benchmarks/skill_llm_ab_benchmark.py
+      --output /workspace/output/benchmarks/skill-llm-ab-v5.json"
+
+  orchestration-ab:
+    image: python:3.12-slim
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - benchmark_pip_cache:/root/.cache/pip
+    environment:
+      PYTHONPATH: /workspace/src
+      PYTHONPYCACHEPREFIX: /tmp/repo-agent-pycache
+      ZHIPUAI_API_KEY: ${ZHIPUAI_API_KEY}
+      GLM_MODEL: ${GLM_MODEL:-glm-5}
+      ORCHESTRATION_AB_REPETITIONS: ${ORCHESTRATION_AB_REPETITIONS:-1}
+      ORCHESTRATION_AB_CASE_IDS: ${ORCHESTRATION_AB_CASE_IDS:-}
+      ORCHESTRATION_AB_DELAY_SECONDS: ${ORCHESTRATION_AB_DELAY_SECONDS:-5}
+    command: >-
+      bash -lc "pip install -e . &&
+      python evals/benchmarks/orchestration_ab_benchmark.py
+      --output /workspace/output/benchmarks/orchestration-ab-v2-full.json"
+
+volumes:
+  benchmark_pip_cache:

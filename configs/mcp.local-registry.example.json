@@ -1,0 +1,48 @@
+{
+  "servers": [
+    {
+      "transport": "registry",
+      "server_name": "repo-agent-local-registry",
+      "server_version": "1.0.0",
+      "exported_tools": ["list_files"],
+      "policy": {
+        "server_id": "local-registry",
+        "tools": [
+          {
+            "remote_name": "list_files",
+            "local_name": "mcp_local_list_files",
+            "description": "通过本地 MCP Registry Server 列出已授权目标仓库文件。",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "max_depth": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 20,
+                  "default": 4
+                },
+                "max_results": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5000,
+                  "default": 300
+                },
+                "file_glob": {
+                  "anyOf": [
+                    {"type": "string", "maxLength": 200},
+                    {"type": "null"}
+                  ],
+                  "default": null
+                }
+              },
+              "additionalProperties": false
+            },
+            "access": "read",
+            "executes_project_code": false,
+            "requires_explicit_authorization": false
+          }
+        ]
+      }
+    }
+  ]
+}

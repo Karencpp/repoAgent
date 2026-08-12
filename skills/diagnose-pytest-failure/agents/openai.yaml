@@ -1,0 +1,6 @@
+interface:
+  display_name: "pytest 失败诊断"
+  short_description: "分类 pytest 失败并生成可复核的诊断证据"
+  default_prompt: "Use $diagnose-pytest-failure to diagnose this pytest failure with evidence."
+policy:
+  allow_implicit_invocation: true

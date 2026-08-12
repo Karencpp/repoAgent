@@ -1,0 +1,17 @@
+[
+  {
+    "name": "断言失败",
+    "input": {"stdout": "FAILED tests/test_total.py::test_total - AssertionError", "stderr": "", "exit_code": 1, "timed_out": false},
+    "expected_category": "assertion_failure"
+  },
+  {
+    "name": "缺少依赖",
+    "input": {"stdout": "", "stderr": "ModuleNotFoundError: No module named 'demo'", "exit_code": 2, "timed_out": false},
+    "expected_category": "environment_failure"
+  },
+  {
+    "name": "执行超时",
+    "input": {"stdout": "", "stderr": "", "exit_code": null, "timed_out": true},
+    "expected_category": "tool_failure"
+  }
+]

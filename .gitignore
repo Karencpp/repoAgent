@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDEs / editors
+.idea/
+.vscode/
+*.swp
+
+# Test / pytest caches & temp
+.pytest_cache/
+pytest-cache-files-*/
+.test-tmp/
+.tool-test-tmp/
+.react-test-tmp/
+.workflow-test-tmp/
+.checkpoint-test-tmp/
+.candidate-test-tmp/
+.rag-test-tmp/
+.memory-test-tmp/
+.memory-curation-test-tmp/
+.application-test-tmp/
+.production-evolution-test-tmp/
+.skill-test-tmp/
+
+# Environment / secrets
+.env
+.env.*
+!.env.*.example
+
+# Logs & local databases
+*.log
+identifier.sqlite
+
+# Generated / temporary / personal output (keep out of the repo)
+tmp/
+output/
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/

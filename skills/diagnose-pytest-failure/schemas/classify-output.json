@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "category": {
+      "enum": ["passed", "assertion_failure", "collection_failure", "environment_failure", "tool_failure", "unknown_failure"]
+    },
+    "summary": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "signals": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 500},
+      "maxItems": 10
+    },
+    "recommended_next_action": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "report_markdown": {"type": "string", "minLength": 1, "maxLength": 10000}
+  },
+  "required": ["category", "summary", "signals", "recommended_next_action", "report_markdown"]
+}

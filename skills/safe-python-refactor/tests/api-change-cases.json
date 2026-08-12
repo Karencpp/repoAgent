@@ -1,0 +1,30 @@
+[
+  {
+    "name": "私有实现调整保持低风险",
+    "input": {
+      "path": "service.py",
+      "before_source": "def run(value: int = 1):\n    return value + 1\n\ndef _helper():\n    return 1\n",
+      "after_source": "def run(value: int = 1):\n    result = value + 1\n    return result\n\ndef _new_helper():\n    return 1\n"
+    },
+    "expected_risk_level": "low"
+  },
+  {
+    "name": "公共签名改变属于高风险",
+    "input": {
+      "path": "service.py",
+      "before_source": "def run(value: int = 1):\n    return value\n",
+      "after_source": "def run(value: int, verbose: bool = False):\n    return value\n"
+    },
+    "expected_risk_level": "high"
+  },
+  {
+    "name": "删除公共方法属于高风险",
+    "input": {
+      "path": "service.py",
+      "before_source": "class Service:\n    def execute(self):\n        return True\n",
+      "after_source": "class Service:\n    pass\n"
+    },
+    "expected_risk_level": "high"
+  }
+]
+

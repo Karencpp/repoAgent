@@ -1,0 +1,98 @@
+"""RepoAgent 的跨线程长期记忆模块。"""
+
+from .curation import (
+    MemoryCurationConflictError,
+    MemoryCurationError,
+    MemoryCurationPolicy,
+    MemoryCurator,
+)
+from .formation import (
+    MemoryCandidateExtractor,
+    MemoryFormationError,
+    PerceptualObservation,
+    SemanticMemoryConsolidator,
+    SemanticExtractionBatch,
+    SemanticMemoryDraft,
+    StructuredSemanticMemoryExtractor,
+    WorkflowPerceptualMemoryExtractor,
+    candidate_from_perceptual_observation,
+)
+from .manager import MemoryAwareRunResult, MemoryAwareWorkflowRunner, MemoryManager
+from .models import (
+    MemoryCandidate,
+    MemoryClaimStatus,
+    MemoryCurationAction,
+    MemoryCurationDecision,
+    MemoryHit,
+    MemoryLifecycleEvent,
+    MemoryLifecycleEventType,
+    MemoryMaintenanceReport,
+    MemoryRecord,
+    MemoryScope,
+    MemorySearchRequest,
+    MemorySearchResult,
+    MemorySource,
+    MemoryStatus,
+    MemoryWrite,
+    PersistedMemoryType,
+)
+from .ports import MemoryStorePort
+from .postgres import PostgresMemoryError, PostgresMemoryStore
+from .store import (
+    MemoryEmbeddingMismatchError,
+    MemoryNotFoundError,
+    MemoryStoreError,
+    SQLiteMemoryStore,
+)
+from .tool import (
+    MEMORY_SEARCH_TOOL_DEFINITION,
+    ProjectMemorySearchTool,
+    SearchProjectMemoryArguments,
+    register_project_memory_search_tool,
+)
+
+__all__ = [
+    "MEMORY_SEARCH_TOOL_DEFINITION",
+    "MemoryAwareRunResult",
+    "MemoryAwareWorkflowRunner",
+    "MemoryCandidate",
+    "MemoryCandidateExtractor",
+    "MemoryClaimStatus",
+    "MemoryCurationAction",
+    "MemoryCurationConflictError",
+    "MemoryCurationDecision",
+    "MemoryCurationError",
+    "MemoryCurationPolicy",
+    "MemoryCurator",
+    "MemoryEmbeddingMismatchError",
+    "MemoryHit",
+    "MemoryFormationError",
+    "MemoryLifecycleEvent",
+    "MemoryLifecycleEventType",
+    "MemoryMaintenanceReport",
+    "MemoryManager",
+    "MemoryNotFoundError",
+    "MemoryRecord",
+    "MemoryScope",
+    "MemorySearchRequest",
+    "MemorySearchResult",
+    "MemorySource",
+    "MemoryStatus",
+    "MemoryStorePort",
+    "MemoryStoreError",
+    "MemoryWrite",
+    "PerceptualObservation",
+    "PersistedMemoryType",
+    "PostgresMemoryError",
+    "PostgresMemoryStore",
+    "ProjectMemorySearchTool",
+    "SQLiteMemoryStore",
+    "SearchProjectMemoryArguments",
+    "SemanticExtractionBatch",
+    "SemanticMemoryConsolidator",
+    "SemanticMemoryDraft",
+    "StructuredSemanticMemoryExtractor",
+    "WorkflowPerceptualMemoryExtractor",
+    "candidate_from_perceptual_observation",
+    "register_project_memory_search_tool",
+]
